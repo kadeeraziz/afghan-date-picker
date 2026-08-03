@@ -10,7 +10,7 @@ English, so the picker reads naturally to Afghan users:
 
 - **Dari months:** حمل، ثور، جوزا، سرطان، اسد، سنبله، میزان، عقرب، قوس، جدی، دلو، حوت
 - **Pashto months:** وری، غویی، غبرګولی، چنګاښ، زمری، وږی، تله، لړم، لیندۍ، مرغومی، سلواغه، کب
-- **Weekdays:** the week starts on Saturday (شنبه / خالي) and runs through Friday (جمعه).
+- **Weekdays:** the week starts on Saturday (شنبه) and runs through Friday (جمعه) in both Dari and Pashto.
 
 Display default is Dari, with Pashto and English available; see
 [Locales And Options](#locales-and-options).
