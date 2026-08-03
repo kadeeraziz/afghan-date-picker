@@ -1,0 +1,59 @@
+{
+  "name": "afghan-date-picker",
+  "version": "0.1.0",
+  "description": "An accessible Afghan Solar Hijri date picker for the web.",
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "scripts": {
+    "build": "tsc && cp src/styles.css dist/styles.css",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run test && npm run build"
+  },
+  "keywords": [
+    "afghan",
+    "calendar",
+    "solar-hijri",
+    "shamsi",
+    "dari",
+    "pashto",
+    "datepicker",
+    "date-picker",
+    "django",
+    "htmx"
+  ],
+  "author": "Kadeer Aziz",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kadeeraziz/afghan-date-picker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kadeeraziz/afghan-date-picker/issues"
+  },
+  "homepage": "https://github.com/kadeeraziz/afghan-date-picker#readme",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^21.1.7",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
