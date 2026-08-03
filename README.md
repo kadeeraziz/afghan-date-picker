@@ -3,9 +3,17 @@
 An accessible, dependency-free Afghan Solar Hijri date picker for ordinary web
 pages, Django forms, and htmx applications.
 
-This project is inspired by the usability of
-[JalaliDatePicker](https://github.com/majidh1/jalaliDatePicker), but it has an
-independent implementation and API.
+## Afghan Locale Data
+
+The calendar uses the Afghan month and weekday names in Dari, Pashto, and
+English, so the picker reads naturally to Afghan users:
+
+- **Dari months:** حمل، ثور، جوزا، سرطان، اسد، سنبله، میزان، عقرب، قوس، جدی، دلو، حوت
+- **Pashto months:** وری، غویی، غبرګولی، چنګاښ، زمری، وږی، تله، لړم، لیندۍ، مرغومی، سلواغه، کب
+- **Weekdays:** the week starts on Saturday (شنبه / خالي) and runs through Friday (جمعه).
+
+Display default is Dari, with Pashto and English available; see
+[Locales And Options](#locales-and-options).
 
 ## Status
 
