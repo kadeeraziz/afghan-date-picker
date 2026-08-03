@@ -16,7 +16,7 @@ export const LOCALES: Readonly<Record<Locale, LocaleData>> = {
       'دلو',
       'حوت'
     ],
-    weekdays: ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'],
+    weekdays: ['شنبه', 'یک شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'],
     previousMonth: 'ماه قبلی',
     nextMonth: 'ماه بعدی',
     today: 'امروز',
