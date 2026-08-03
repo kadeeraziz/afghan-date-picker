@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Afghan Date Picker — plain HTML demo</title>
+  <link rel="stylesheet" href="../../dist/styles.css">
+  <style>
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Tahoma, Arial, sans-serif;
+      color: #1f2937;
+      background: #f3f4f6;
+    }
+    main {
+      max-width: 560px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem;
+    }
+    h1 { font-size: 1.5rem; }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      margin: 1.5rem 0;
+    }
+    .field label { font-weight: 600; }
+    .field input[type="text"] {
+      padding: 0.6rem 0.75rem;
+      font-size: 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+    }
+    .event-log {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background: #111827;
+      color: #e5e7eb;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.8rem;
+      border-radius: 8px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Afghan Date Picker</h1>
+    <p>Dari display (default) with a hidden Gregorian ISO target for form submission.</p>
+
+    <form id="appointment-form" onsubmit="event.preventDefault(); log('submitted: ' + new FormData(this).get('appointment_date'));">
+      <div class="field">
+        <label for="appointment-date-display">Appointment date</label>
+        <input
+          id="appointment-date-display"
+          name="appointment_date_display"
+          data-afghan-date-picker
+          data-afghan-target="#appointment-date"
+          autocomplete="off"
+        >
+        <input id="appointment-date" name="appointment_date" type="hidden">
+      </div>
+      <button type="submit">Save</button>
+    </form>
+
+    <div class="field">
+      <label for="pashto-date-display">Pashto, Latin numerals</label>
+      <input
+        id="pashto-date-display"
+        data-afghan-date-picker
+        data-afghan-locale="pashto"
+        data-afghan-numerals="latin"
+        data-afghan-target="#pashto-date"
+        autocomplete="off"
+      >
+      <input id="pashto-date" name="pashto_date" type="hidden">
+    </div>
+
+    <div class="event-output" id="events">(view events here)</div>
+  </main>
+
+  <script type="module">
+    import { startWatch } from '../../dist/index.js';
+
+    const eventOutput = document.getElementById('events');
+    function log(line) {
+      eventOutput.textContent = `${new Date().toISOString()} ${line}\n${eventOutput.textContent}`;
+    }
+
+    const pickers = startWatch();
+
+    document.getElementById('appointment-date-display').addEventListener('afghan-date-change', (event) => {
+      log(`appointment change → afghan: ${event.detail.afghanDate.year}/${event.detail.afghanDate.month}/${event.detail.afghanDate.day}, gregorian: ${event.detail.gregorianDate}`);
+    });
+    document.getElementById('pashto-date-display').addEventListener('afghan-date-change', (event) => {
+      log(`pashto change → gregorian: ${event.detail.gregorianDate}`);
+    });
+
+    log(`${pickers.length} picker(s) initialized`);
+  </script>
+</body>
+</html>

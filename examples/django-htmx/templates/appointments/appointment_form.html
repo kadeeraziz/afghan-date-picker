@@ -1,0 +1,60 @@
+<!--
+  Django + htmx appointment form using afghan-date-picker.
+
+  Requirements:
+  - The view renders `form.appointment_date` (a normal Django DateField) as the
+    hidden target input that the picker fills with a Gregorian ISO date.
+  - Load the picker bundle, its stylesheet, and startWatch() once, usually in
+    your base template.
+-->
+{% extends "base.html" %}
+
+{% block content %}
+<form
+  method="post"
+  hx-post="{% url 'appointments:create' %}"
+  hx-target="#appointment-form"
+  hx-swap="outerHTML"
+  id="appointment-form"
+  novalidate
+>
+  {% csrf_token %}
+
+  <div class="field">
+    <label for="appointment-date-display">Date of appointment</label>
+
+    {# Visible input the user interacts with. #}
+    <input
+      id="appointment-date-display"
+      type="text"
+      data-afghan-date-picker
+      data-afghan-target="#id_appointment_date"
+      autocomplete="off"
+      inputmode="numeric"
+    >
+
+    {# Django DateField rendered as the hidden Gregorian target. #}
+    {{ form.appointment_date }}
+
+    {% if form.appointment_date.errors %}
+      <ul class="errorlist">{{ form.appointment_date.errors }}</ul>
+    {% endif %}
+  </div>
+
+  {% if form.non_field_errors %}
+    <ul class="errorlist">{{ form.non_field_errors }}</ul>
+  {% endif %}
+
+  <button type="submit">Save</button>
+</form>
+
+{# Live-update the hidden target when the picker fires, in case htmx re-renders. #}
+<script>
+  document.addEventListener('afghan-date-change', function (event) {
+    var input = event.target;
+    if (input.matches('[data-afghan-date-picker]')) {
+      input.dispatchEvent(new CustomEvent('input', { bubbles: true }));
+    }
+  });
+</script>
+{% endblock %}
