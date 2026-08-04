@@ -194,6 +194,24 @@ export function getAfghanWeekday(date: AfghanDate): number {
   return ((afghanDateToDayNumber(date) + 2) % 7 + 7) % 7;
 }
 
+export function addAfghanMonths(date: AfghanDate, months: number): AfghanDate {
+  validateAfghanDate(date);
+  assertInteger(months, 'Months');
+  const absoluteMonth = date.year * 12 + (date.month - 1) + months;
+  const year = Math.floor(absoluteMonth / 12);
+  const month = (absoluteMonth % 12) + 1;
+  const daysInTargetMonth = getDaysInAfghanMonth(year, month);
+  return { year, month, day: Math.min(date.day, daysInTargetMonth) };
+}
+
+export function addAfghanYears(date: AfghanDate, years: number): AfghanDate {
+  validateAfghanDate(date);
+  if (!Number.isInteger(years)) {
+    throw new RangeError('Years must be an integer.');
+  }
+  return addAfghanMonths(date, years * 12);
+}
+
 export function getMonthGrid(year: number, month: number): MonthGridCell[] {
   const first = { year, month, day: 1 };
   validateAfghanDate(first);

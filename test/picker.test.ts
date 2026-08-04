@@ -81,4 +81,89 @@ describe('Afghan date picker', () => {
     expect(input.getAttribute('aria-controls')).toMatch(/^afghan-date-picker-/);
     pickers[0].destroy();
   });
+
+  it('navigates days with the keyboard and commits with Enter', () => {
+    const { input, target } = setup();
+    const picker = createAfghanDatePicker(input, { initialDate: { year: 1403, month: 1, day: 1 } });
+    picker.open();
+    const focused = () => picker.element.querySelector<HTMLButtonElement>('.afghan-date-picker__day[tabindex="0"]')!;
+    const press = (key: string) => {
+      const button = document.activeElement instanceof HTMLButtonElement ? document.activeElement : focused();
+      button.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+    };
+
+    expect(focused().dataset.date).toBe('1403-01-01');
+    focused().focus();
+    press('ArrowLeft');
+    expect(focused().dataset.date).toBe('1402-12-29');
+
+    focused().focus();
+    press('Enter');
+    expect(input.value).toBe('۱۴۰۲/۱۲/۲۹');
+    expect(target.value).toBe('2024-03-19');
+  });
+
+it('clears the value and dispatches afghan-date-clear', () => {
+    const { input, target } = setup();
+    createAfghanDatePicker(input, { initialDate: { year: 1403, month: 1, day: 1 } });
+    const clears: unknown[] = [];
+    input.addEventListener('afghan-date-clear', (event) => clears.push((event as CustomEvent).detail));
+
+    input.value = '۱۴۰۳/۰۱/۰۱';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(target.value).toBe('2024-03-20');
+
+    input.value = '';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    expect(input.value).toBe('');
+    expect(target.value).toBe('');
+    expect(clears.length).toBe(1);
+  });
+
+  it('supports the programmatic setDate, getDate, and clear API', () => {
+    const { input, target } = setup();
+    const picker = createAfghanDatePicker(input, { initialDate: { year: 1403, month: 1, day: 1 } });
+
+    picker.setDate({ year: 1403, month: 2, day: 15 });
+    expect(picker.getDate()).toEqual({ year: 1403, month: 2, day: 15 });
+    expect(target.value).toBe('2024-05-04');
+
+    picker.clear();
+    expect(picker.getDate()).toBeUndefined();
+    expect(input.value).toBe('');
+    expect(target.value).toBe('');
+  });
+
+  it('submits a Gregorian ISO value into a named hidden field', () => {
+    const { input, target } = setup();
+    const form = document.createElement('form');
+    form.name = 'appointment';
+    document.body.append(form);
+    form.append(input, target);
+
+    createAfghanDatePicker(input, { initialDate: { year: 1403, month: 1, day: 1 } });
+    input.value = '۱۴۰۳/۰۱/۰۱';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const data = new FormData(form);
+    expect(data.get('appointment_date')).toBe('2024-03-20');
+  });
+
+  it('respects min and max dates from input data attributes', () => {
+    const { input } = setup();
+    input.dataset.afghanMinDate = '۱۴۰۳/۰۱/۰۵';
+    input.dataset.afghanMaxDate = '۱۴۰۳/۰۱/۱۰';
+    input.dataset.afghanInitialDate = '۱۴۰۳/۰۱/۰۱';
+    const pickers = startWatch(document);
+    const picker = pickers[0];
+    picker.open();
+
+    const days = [...picker.element.querySelectorAll<HTMLButtonElement>('.afghan-date-picker__day')];
+    const beforeMin = days.find((day) => day.dataset.date === '1403-01-04');
+    const firstAllowed = days.find((day) => day.dataset.date === '1403-01-05');
+    expect(beforeMin).toHaveProperty('disabled', true);
+    expect(firstAllowed).toHaveProperty('disabled', false);
+    picker.destroy();
+  });
 });

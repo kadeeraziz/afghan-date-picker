@@ -14,6 +14,8 @@ export {
   MAX_AFGHAN_YEAR,
   MIN_AFGHAN_YEAR,
   addAfghanDays,
+  addAfghanMonths,
+  addAfghanYears,
   compareAfghanDates,
   fromGregorian,
   formatGregorianISO,

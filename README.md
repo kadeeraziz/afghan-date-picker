@@ -33,6 +33,11 @@ common 33-year leap cycle. It is anchored by these modern conformance vectors:
 The astronomical and historical boundaries of Solar Hijri calendars need more
 research before the calendar model should be treated as a stable `1.0` contract.
 
+The suite runs 34 tests covering conversion round trips across a multi-year
+window, leap-cycle distribution, month-boundary arithmetic, locale names,
+weekday consistency against the Gregorian calendar, keyboard navigation, clear
+behavior, min/max bounds, and form submission.
+
 ## Install
 
 ```bash
@@ -91,6 +96,9 @@ The core also exposes locale and calendar functions:
 
 ```ts
 import {
+  addAfghanDays,
+  addAfghanMonths,
+  addAfghanYears,
   formatAfghanDate,
   fromGregorian,
   isAfghanLeapYear,
@@ -102,6 +110,9 @@ const date = fromGregorian({ year: 2024, month: 3, day: 20 });
 formatAfghanDate(date); // ۱۴۰۳/۰۱/۰۱
 toGregorian(date); // { year: 2024, month: 3, day: 20 }
 isAfghanLeapYear(1403); // true
+addAfghanDays(date, 30); // { year: 1403, month: 1, day: 31 }
+addAfghanMonths(date, 12); // { year: 1404, month: 1, day: 1 }
+addAfghanYears(date, 1); // { year: 1404, month: 1, day: 1 }
 ```
 
 ## Events
