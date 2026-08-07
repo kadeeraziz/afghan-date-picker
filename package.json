@@ -22,6 +22,7 @@
     "build": "tsc && cp src/styles.css dist/styles.css",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:browser": "npm run build && playwright test",
     "typecheck": "tsc --noEmit",
     "prepare": "npm run build",
     "prepack": "npm run test && npm run build"
@@ -52,6 +53,7 @@
     "node": ">=20"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/jsdom": "^21.1.7",
     "jsdom": "^26.1.0",
     "typescript": "^5.8.3",

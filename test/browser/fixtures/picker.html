@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Afghan date picker browser test harness</title>
+  <link rel="stylesheet" href="/dist/styles.css">
+  <style>
+    body { margin: 0; }
+    #app { min-height: 100vh; box-sizing: border-box; padding: 1rem; }
+    input[type="text"] { font-size: 1rem; padding: 0.5rem 0.6rem; }
+  </style>
+</head>
+<body>
+  <main id="app"></main>
+
+  <script type="module">
+    import { createAfghanDatePicker, startWatch } from '/dist/index.js';
+
+    window.__createPicker = (input, options = {}) => {
+      if (options.now === '__manual') {
+        const now = () => new Date(window.__manualNow ?? '2024-03-20T19:29:59.000Z');
+        options = { ...options, now };
+      }
+      return createAfghanDatePicker(input, options);
+    };
+
+    window.__startWatch = (root) => startWatch(root);
+    window.__pickers = [];
+    window.__manualNow = undefined;
+  </script>
+</body>
+</html>

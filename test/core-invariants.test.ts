@@ -164,7 +164,9 @@ describe('locale names', () => {
 });
 
 describe('weekday consistency', () => {
-  it('is Saturday on the anchor date', () => {
+  // The Afghan week starts on Saturday, so the weekday index is Saturday = 0,
+  // Sunday = 1, ..., Friday = 6. The names in the locale data follow that order.
+  it('identifies the 1403 New Year (2024-03-20) as Wednesday, index 4', () => {
     expect(getAfghanWeekday({ year: 1403, month: 1, day: 1 })).toBe(4);
     expect(getAfghanWeekday({ year: 1403, month: 1, day: 7 })).toBe(3);
   });

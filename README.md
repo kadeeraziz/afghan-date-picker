@@ -43,11 +43,13 @@ These are the conformance vectors used by the package:
 The astronomical and historical boundaries of Solar Hijri calendars need more
 research before the calendar model should be treated as a stable `1.0` contract.
 
-The suite runs 45 tests covering historical and modern conversion vectors,
+The suite runs 45 unit tests covering historical and modern conversion vectors,
 round trips, Afghan range endpoints, leap days, month-boundary arithmetic,
 locale names, weekday consistency against the Gregorian calendar, keyboard
 navigation including RTL arrows and paging, Kabul midnight behavior, popup
-positioning, clear behavior, min/max bounds, and form submission.
+positioning, clear behavior, min/max bounds, and form submission. A separate
+Playwright smoke layer drives the compiled picker in real Chromium at desktop
+and narrow-mobile viewports.
 
 ## Install
 
@@ -187,10 +189,17 @@ when the picker starts. Invalid typed values do not overwrite the target.
 ```bash
 npm install
 npm test
+npm run test:browser
 npm run typecheck
 npm run build
 npm pack --dry-run
 ```
+
+`test:browser` compiles `dist` and then runs the Playwright suite, which installs
+its own headless Chromium on first use (`npx playwright install chromium`).
+The browser tests cover opening the picker, RTL arrow and keyboard navigation,
+timezone-aware Today behavior, the hidden Gregorian target, popup containment in
+a 320x400 viewport, and absence of console errors.
 
 The project deliberately keeps the calendar core separate from DOM behavior.
 Framework adapters, time selection, ranges, multiple dates, and a Python
