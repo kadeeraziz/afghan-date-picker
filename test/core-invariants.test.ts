@@ -34,6 +34,20 @@ describe('Afghan Solar Hijri core invariants', () => {
     });
   });
 
+  it('round trips every Gregorian date in the verified 1900-2100 range', () => {
+    for (let year = 1900; year <= 2100; year += 1) {
+      for (let month = 1; month <= 12; month += 1) {
+        const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+        for (let day = 1; day <= daysInMonth; day += 1) {
+          const gregorian = { year, month, day };
+          const afghan = fromGregorian(gregorian);
+          expect(toGregorian(afghan)).toEqual(gregorian);
+          expect(fromGregorian(toGregorian(afghan))).toEqual(afghan);
+        }
+      }
+    }
+  });
+
   it('always produces a valid Afghan date after toGregorian', () => {
     const window = iterateAfghanDates({ year: 1400, month: 1, day: 1 }, 4000);
     window.forEach((date) => {
@@ -57,12 +71,21 @@ describe('Afghan Solar Hijri core invariants', () => {
     });
   });
 
-  it('distributes leap years across the 33-year cycle', () => {
+  it('uses the established leap states in the modern range', () => {
     const leaps = [];
-    for (let year = 1; year <= 33; year += 1) {
+    for (let year = 1399; year <= 1431; year += 1) {
       if (isAfghanLeapYear(year)) leaps.push(year);
     }
-    expect(leaps).toEqual([1, 5, 9, 13, 17, 22, 26, 30]);
+    expect(leaps).toEqual([1399, 1403, 1408, 1412, 1416, 1420, 1424, 1428]);
+  });
+
+  it('supports the documented Afghan year range endpoints', () => {
+    const first = { year: 1, month: 1, day: 1 };
+    const last = { year: 3000, month: 12, day: 29 };
+    expect(formatGregorianISO(toGregorian(first))).toBe('0622-03-22');
+    expect(fromGregorian(toGregorian(first))).toEqual(first);
+    expect(formatGregorianISO(toGregorian(last))).toBe('3622-03-19');
+    expect(fromGregorian(toGregorian(last))).toEqual(last);
   });
 
   it('enforces month length consistency with the calendar', () => {

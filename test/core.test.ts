@@ -13,6 +13,9 @@ import {
   validateAfghanDate
 } from '../src/index.js';
 
+// The expected values below were generated independently with jalaali-js 2.0.0,
+// which implements Borkowski's published Solar Hijri conversion algorithm:
+// https://github.com/jalaali/jalaali-js
 describe('Afghan Solar Hijri core', () => {
   it('converts the modern New Year anchor', () => {
     expect(formatGregorianISO(toGregorian({ year: 1403, month: 1, day: 1 }))).toBe('2024-03-20');
@@ -26,7 +29,42 @@ describe('Afghan Solar Hijri core', () => {
     expect(toGregorian({ year: 1404, month: 1, day: 1 })).toEqual({ year: 2025, month: 3, day: 21 });
   });
 
-  it('matches the known 33-year cycle leap positions', () => {
+  it('matches established Solar Hijri reference vectors before and after 2024', () => {
+    const gregorianVectors = [
+      [{ year: 1900, month: 1, day: 1 }, { year: 1278, month: 10, day: 11 }],
+      [{ year: 1900, month: 6, day: 15 }, { year: 1279, month: 3, day: 25 }],
+      [{ year: 1950, month: 2, day: 28 }, { year: 1328, month: 12, day: 9 }],
+      [{ year: 2000, month: 2, day: 29 }, { year: 1378, month: 12, day: 10 }],
+      [{ year: 2024, month: 9, day: 21 }, { year: 1403, month: 6, day: 31 }],
+      [{ year: 2024, month: 9, day: 22 }, { year: 1403, month: 7, day: 1 }],
+      [{ year: 2021, month: 3, day: 20 }, { year: 1399, month: 12, day: 30 }],
+      [{ year: 2022, month: 3, day: 20 }, { year: 1400, month: 12, day: 29 }],
+      [{ year: 2024, month: 3, day: 19 }, { year: 1402, month: 12, day: 29 }]
+    ] as const;
+
+    gregorianVectors.forEach(([gregorian, afghan]) => {
+      expect(fromGregorian(gregorian)).toEqual(afghan);
+      expect(toGregorian(afghan)).toEqual(gregorian);
+    });
+  });
+
+  it('covers the Afghan leap day and year boundaries', () => {
+    const vectors = [
+      [{ year: 1399, month: 12, day: 30 }, { year: 2021, month: 3, day: 20 }],
+      [{ year: 1400, month: 1, day: 1 }, { year: 2021, month: 3, day: 21 }],
+      [{ year: 1402, month: 12, day: 29 }, { year: 2024, month: 3, day: 19 }],
+      [{ year: 1403, month: 1, day: 1 }, { year: 2024, month: 3, day: 20 }],
+      [{ year: 1403, month: 12, day: 30 }, { year: 2025, month: 3, day: 20 }],
+      [{ year: 1404, month: 1, day: 1 }, { year: 2025, month: 3, day: 21 }]
+    ] as const;
+
+    vectors.forEach(([afghan, gregorian]) => {
+      expect(toGregorian(afghan)).toEqual(gregorian);
+      expect(fromGregorian(gregorian)).toEqual(afghan);
+    });
+  });
+
+  it('matches the modern leap-year positions', () => {
     [1403, 1408, 1412].forEach((year) => expect(isAfghanLeapYear(year)).toBe(true));
     [1404, 1405, 1406, 1407].forEach((year) => expect(isAfghanLeapYear(year)).toBe(false));
   });

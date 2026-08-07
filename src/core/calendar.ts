@@ -1,21 +1,73 @@
 import type { AfghanDate, GregorianDate, MonthGridCell } from './types.js';
 
-/**
- * Julian day number for 1403-01-01's arithmetic epoch.
- *
- * The modern civil model used here maps 1403-01-01 to 2024-03-20 and follows
- * the common 33-year Afghan Solar Hijri cycle for the supported modern range.
- */
-export const AFGHAN_EPOCH_JDN = 1_948_320;
+/** Julian day number for Afghan 1-01-01 in the supported arithmetic model. */
+export const AFGHAN_EPOCH_JDN = 1_948_321;
 export const MIN_AFGHAN_YEAR = 1;
 export const MAX_AFGHAN_YEAR = 3000;
 
-const LEAP_YEARS_IN_CYCLE = [1, 5, 9, 13, 17, 22, 26, 30] as const;
+// Borkowski's break-point algorithm is used by established Solar Hijri
+// implementations, including jalaali-js. It agrees with the modern Afghan
+// conformance dates while keeping the historical range internally consistent.
+const BORKOWSKI_BREAKS = [
+  -61, 9, 38, 199, 426, 686, 756, 818, 1111, 1181,
+  1210, 1635, 2060, 2097, 2192, 2262, 2324, 2394, 2456, 3178
+] as const;
+const BORKOWSKI_MIN_YEAR = BORKOWSKI_BREAKS[0];
+const BORKOWSKI_MAX_YEAR = BORKOWSKI_BREAKS[BORKOWSKI_BREAKS.length - 1] - 1;
 
 function assertInteger(value: number, name: string): void {
   if (!Number.isInteger(value)) {
     throw new RangeError(`${name} must be an integer.`);
   }
+}
+
+function integerDivide(value: number, divisor: number): number {
+  return Math.trunc(value / divisor);
+}
+
+function borkowskiModulo(value: number, divisor: number): number {
+  return value - integerDivide(value, divisor) * divisor;
+}
+
+interface SolarYearCalculation {
+  leap: number;
+  year: number;
+  march: number;
+}
+
+function assertBorkowskiYear(year: number): void {
+  if (!Number.isFinite(year) || year < BORKOWSKI_MIN_YEAR || year > BORKOWSKI_MAX_YEAR) {
+    throw new RangeError(`Solar Hijri conversion requires a year between ${BORKOWSKI_MIN_YEAR} and ${BORKOWSKI_MAX_YEAR}.`);
+  }
+}
+
+function solarYearCalculation(year: number): SolarYearCalculation {
+  assertBorkowskiYear(year);
+  let leapYears = -14;
+  let previousBreak: number = BORKOWSKI_BREAKS[0];
+  let jump = 0;
+
+  for (let index = 1; index < BORKOWSKI_BREAKS.length; index += 1) {
+    const currentBreak = BORKOWSKI_BREAKS[index];
+    jump = currentBreak - previousBreak;
+    if (year < currentBreak) break;
+    leapYears += integerDivide(jump, 33) * 8 + integerDivide(borkowskiModulo(jump, 33), 4);
+    previousBreak = currentBreak;
+  }
+
+  const yearOffset = year - previousBreak;
+  leapYears += integerDivide(yearOffset, 33) * 8 + integerDivide(borkowskiModulo(yearOffset, 33) + 3, 4);
+  if (borkowskiModulo(jump, 33) === 4 && jump - yearOffset === 4) leapYears += 1;
+
+  const gregorianYear = year + 621;
+  const gregorianLeapYears = integerDivide(gregorianYear, 4) -
+    integerDivide((integerDivide(gregorianYear, 100) + 1) * 3, 4) - 150;
+  const march = 20 + leapYears - gregorianLeapYears;
+  const leap = borkowskiModulo(borkowskiModulo(yearOffset + 1, 33) - 1, 4) === -1
+    ? 4
+    : borkowskiModulo(borkowskiModulo(yearOffset + 1, 33) - 1, 4);
+
+  return { leap, year: gregorianYear, march };
 }
 
 export function isAfghanLeapYear(year: number): boolean {
@@ -24,8 +76,7 @@ export function isAfghanLeapYear(year: number): boolean {
     throw new RangeError(`Afghan year must be between ${MIN_AFGHAN_YEAR} and ${MAX_AFGHAN_YEAR}.`);
   }
 
-  const yearInCycle = ((year - 1) % 33) + 1;
-  return LEAP_YEARS_IN_CYCLE.includes(yearInCycle as (typeof LEAP_YEARS_IN_CYCLE)[number]);
+  return solarYearCalculation(year).leap === 0;
 }
 
 export function getDaysInAfghanMonth(year: number, month: number): number {
@@ -104,53 +155,46 @@ function jdnToGregorian(jdn: number): GregorianDate {
   };
 }
 
-function daysBeforeAfghanYear(year: number): number {
-  const completedYears = year - 1;
-  const cycles = Math.floor(completedYears / 33);
-  const remainder = completedYears % 33;
-  const leapDays = LEAP_YEARS_IN_CYCLE.filter((leapYear) => leapYear <= remainder).length;
-  return completedYears * 365 + cycles * LEAP_YEARS_IN_CYCLE.length + leapDays;
-}
-
-function daysBeforeAfghanMonth(year: number, month: number): number {
+function daysBeforeAfghanMonth(month: number): number {
   if (month <= 1) return 0;
   if (month <= 7) return (month - 1) * 31;
   return 186 + (month - 7) * 30;
 }
 
 function afghanDateToDayNumber(date: AfghanDate): number {
-  return AFGHAN_EPOCH_JDN + daysBeforeAfghanYear(date.year) + daysBeforeAfghanMonth(date.year, date.month) + date.day - 1;
+  validateAfghanDate(date);
+  const solarYear = solarYearCalculation(date.year);
+  return gregorianToJdn({ year: solarYear.year, month: 3, day: solarYear.march }) +
+    daysBeforeAfghanMonth(date.month) + date.day - 1;
 }
 
 function dayNumberToAfghanDate(dayNumber: number): AfghanDate {
-  const daysSinceEpoch = dayNumber - AFGHAN_EPOCH_JDN;
-  if (daysSinceEpoch < 0) {
-    throw new RangeError('Date is before the supported Afghan calendar epoch.');
+  const gregorian = jdnToGregorian(dayNumber);
+  let year = gregorian.year - 621;
+  assertBorkowskiYear(year);
+  let solarYear = solarYearCalculation(year);
+  let firstDayOfYear = gregorianToJdn({ year: solarYear.year, month: 3, day: solarYear.march });
+
+  if (dayNumber < firstDayOfYear) {
+    year -= 1;
+    assertBorkowskiYear(year);
+    solarYear = solarYearCalculation(year);
+    firstDayOfYear = gregorianToJdn({ year: solarYear.year, month: 3, day: solarYear.march });
   }
 
-  const daysPerCycle = 33 * 365 + LEAP_YEARS_IN_CYCLE.length;
-  const cycles = Math.floor(daysSinceEpoch / daysPerCycle);
-  let remaining = daysSinceEpoch - cycles * daysPerCycle;
-  let year = cycles * 33 + 1;
-
-  while (remaining >= getDaysInAfghanYear(year)) {
-    remaining -= getDaysInAfghanYear(year);
-    year += 1;
+  if (year < MIN_AFGHAN_YEAR || year > MAX_AFGHAN_YEAR) {
+    throw new RangeError(`Afghan date conversion supports years ${MIN_AFGHAN_YEAR} through ${MAX_AFGHAN_YEAR}.`);
   }
 
-  if (year > MAX_AFGHAN_YEAR) {
-    throw new RangeError(`Afghan year must be between ${MIN_AFGHAN_YEAR} and ${MAX_AFGHAN_YEAR}.`);
-  }
-
-  const month = remaining < 186
-    ? Math.floor(remaining / 31) + 1
-    : Math.floor((remaining - 186) / 30) + 7;
-  const firstDayOfMonth = daysBeforeAfghanMonth(year, month);
-  return { year, month, day: remaining - firstDayOfMonth + 1 };
-}
-
-function getDaysInAfghanYear(year: number): number {
-  return isAfghanLeapYear(year) ? 366 : 365;
+  const daysSinceYearStart = dayNumber - firstDayOfYear;
+  const month = daysSinceYearStart <= 185
+    ? Math.floor(daysSinceYearStart / 31) + 1
+    : Math.floor((daysSinceYearStart - 186) / 30) + 7;
+  return {
+    year,
+    month,
+    day: daysSinceYearStart - daysBeforeAfghanMonth(month) + 1
+  };
 }
 
 export function fromGregorian(date: GregorianDate): AfghanDate {

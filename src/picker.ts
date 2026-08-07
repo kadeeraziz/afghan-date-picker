@@ -8,6 +8,8 @@ import {
   getLocale,
   getMonthGrid,
   isAfghanDateInRange,
+  MAX_AFGHAN_YEAR,
+  MIN_AFGHAN_YEAR,
   parseAfghanDate,
   parseGregorianISO,
   toGregorian,
@@ -22,6 +24,8 @@ export interface PickerOptions {
   minDate?: AfghanDate;
   maxDate?: AfghanDate;
   target?: string | HTMLInputElement;
+  timeZone?: string;
+  now?: () => Date;
   showTodayButton?: boolean;
   showClearButton?: boolean;
   closeOnSelect?: boolean;
@@ -56,6 +60,8 @@ const DEFAULT_OPTIONS: Required<Pick<PickerOptions, 'locale' | 'numerals' | 'sho
 };
 
 let pickerId = 0;
+const DEFAULT_TIME_ZONE = 'Asia/Kabul';
+const defaultNow = (): Date => new Date();
 
 function cloneDate(date: AfghanDate | undefined): AfghanDate | undefined {
   return date ? { ...date } : undefined;
@@ -76,12 +82,32 @@ function resolveTarget(input: HTMLInputElement, target: PickerOptions['target'])
   return element instanceof input.ownerDocument.defaultView!.HTMLInputElement ? element : undefined;
 }
 
-function getLocalToday(): AfghanDate {
-  const now = new Date();
-  return fromGregorian({ year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() });
+function getTodayInTimeZone(timeZone: string, now: () => Date): AfghanDate {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    calendar: 'gregory',
+    day: '2-digit',
+    month: '2-digit',
+    numberingSystem: 'latn',
+    timeZone,
+    year: 'numeric'
+  }).formatToParts(now());
+  const values: Record<string, string> = {};
+  parts.forEach((part) => {
+    values[part.type] = part.value;
+  });
+  return fromGregorian({
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day)
+  });
 }
 
-function getInitialDate(input: HTMLInputElement, target: HTMLInputElement | undefined, options: PickerOptions): AfghanDate {
+function getTargetDate(target: HTMLInputElement | undefined): AfghanDate | undefined {
+  if (!target?.value) return undefined;
+  return fromGregorian(parseGregorianISO(target.value));
+}
+
+function getInitialDate(input: HTMLInputElement, targetDate: AfghanDate | undefined, options: PickerOptions): AfghanDate {
   if (options.initialDate) {
     validateAfghanDate(options.initialDate);
     return cloneDate(options.initialDate)!;
@@ -95,15 +121,10 @@ function getInitialDate(input: HTMLInputElement, target: HTMLInputElement | unde
     }
   }
 
-  if (target?.value) {
-    try {
-      return fromGregorian(parseGregorianISO(target.value));
-    } catch {
-      // An empty or invalid target behaves like an empty input.
-    }
-  }
-
-  return getLocalToday();
+  return cloneDate(targetDate) ?? getTodayInTimeZone(
+    options.timeZone ?? DEFAULT_TIME_ZONE,
+    options.now ?? defaultNow
+  );
 }
 
 function formatAccessibleDate(date: AfghanDate, locale: Locale, numerals: NumeralSystem): string {
@@ -115,7 +136,8 @@ export function createAfghanDatePicker(input: HTMLInputElement, suppliedOptions:
   const target = resolveTarget(input, options.target ?? input.dataset.afghanTarget);
   const localeData = getLocale(options.locale);
   const doc = input.ownerDocument;
-  const initialDate = getInitialDate(input, target, options);
+  const targetDate = getTargetDate(target);
+  const initialDate = getInitialDate(input, targetDate, options);
   let selectedDate: AfghanDate | undefined;
   if (options.initialDate) {
     selectedDate = cloneDate(options.initialDate);
@@ -125,15 +147,12 @@ export function createAfghanDatePicker(input: HTMLInputElement, suppliedOptions:
     } catch {
       selectedDate = undefined;
     }
-  } else if (target?.value) {
-    try {
-      selectedDate = fromGregorian(parseGregorianISO(target.value));
-    } catch {
-      selectedDate = undefined;
-    }
+  } else if (!input.value.trim() && targetDate) {
+    selectedDate = cloneDate(targetDate);
   }
   let viewDate = cloneDate(selectedDate ?? initialDate)!;
   let isOpen = false;
+  let isRestoringFocus = false;
   let previousFocus: HTMLElement | null = null;
 
   const id = `afghan-date-picker-${++pickerId}`;
@@ -142,6 +161,7 @@ export function createAfghanDatePicker(input: HTMLInputElement, suppliedOptions:
   popup.id = id;
   popup.hidden = true;
   popup.setAttribute('role', 'dialog');
+  popup.setAttribute('aria-modal', 'true');
   popup.setAttribute('aria-label', localeData.chooseDate);
   popup.dir = options.locale === 'english' ? 'ltr' : 'rtl';
 
@@ -210,6 +230,7 @@ export function createAfghanDatePicker(input: HTMLInputElement, suppliedOptions:
 
   function commit(date: AfghanDate): void {
     if (!isSelectable(date)) return;
+    const shouldKeepGridFocus = isOpen && !options.closeOnSelect;
     selectedDate = cloneDate(date);
     viewDate = cloneDate(date)!;
     input.value = formatAccessibleDate(date, options.locale, options.numerals);
@@ -217,12 +238,17 @@ export function createAfghanDatePicker(input: HTMLInputElement, suppliedOptions:
     if (target) target.value = formatGregorianISO(toGregorian(date));
     dispatchChange(date);
     render();
+    if (shouldKeepGridFocus) {
+      const selectedButton = grid.querySelector<HTMLButtonElement>(`.afghan-date-picker__day:not(:disabled)[data-date="${formatAfghanDate(date, { numerals: 'latin', separator: '-' })}"]`);
+      (selectedButton ?? grid).focus();
+    }
     if (options.closeOnSelect) close();
   }
 
   function render(): void {
     title.textContent = formatMonthYear(viewDate, { locale: options.locale, numerals: options.numerals });
     grid.replaceChildren();
+    const today = getTodayInTimeZone(options.timeZone ?? DEFAULT_TIME_ZONE, options.now ?? defaultNow);
 
     const weekdayRow = doc.createElement('div');
     weekdayRow.className = 'afghan-date-picker__weekdays';
@@ -263,7 +289,7 @@ export function createAfghanDatePicker(input: HTMLInputElement, suppliedOptions:
           dayButton.setAttribute('aria-selected', 'true');
           dayButton.classList.add('afghan-date-picker__day--selected');
         }
-        if (compareAfghanDates(getLocalToday(), cell.date) === 0) {
+        if (compareAfghanDates(today, cell.date) === 0) {
           dayButton.setAttribute('aria-current', 'date');
           dayButton.classList.add('afghan-date-picker__day--today');
         }
@@ -278,12 +304,24 @@ export function createAfghanDatePicker(input: HTMLInputElement, suppliedOptions:
       ? focusableDays.find((button) => button.dataset.date === formatAfghanDate(selectedDate!, { numerals: 'latin', separator: '-' }))
       : undefined;
     (selectedButton ?? focusableDays.find((button) => !button.classList.contains('afghan-date-picker__day--outside')) ?? focusableDays[0])?.setAttribute('tabindex', '0');
+    grid.tabIndex = focusableDays.length > 0 ? -1 : 0;
   }
 
   function positionPopup(): void {
+    if (!isOpen) return;
     const rect = input.getBoundingClientRect();
-    popup.style.top = `${rect.bottom + 8}px`;
-    popup.style.left = `${Math.max(8, rect.left)}px`;
+    const viewportWidth = doc.defaultView?.innerWidth || doc.documentElement.clientWidth;
+    const viewportHeight = doc.defaultView?.innerHeight || doc.documentElement.clientHeight;
+    const popupRect = popup.getBoundingClientRect();
+    const maxLeft = Math.max(8, viewportWidth - popupRect.width - 8);
+    const maxTop = Math.max(8, viewportHeight - popupRect.height - 8);
+    const topBelow = rect.bottom + 8;
+    const topAbove = rect.top - popupRect.height - 8;
+    const top = popupRect.height > 0 && topBelow > maxTop && topAbove >= 8
+      ? topAbove
+      : Math.min(Math.max(8, topBelow), maxTop);
+    popup.style.top = `${top}px`;
+    popup.style.left = `${Math.min(Math.max(8, rect.left), maxLeft)}px`;
   }
 
   function close(): void {
@@ -291,7 +329,11 @@ export function createAfghanDatePicker(input: HTMLInputElement, suppliedOptions:
     isOpen = false;
     popup.hidden = true;
     input.setAttribute('aria-expanded', 'false');
-    if (previousFocus && previousFocus.isConnected) previousFocus.focus();
+    if (previousFocus && previousFocus.isConnected) {
+      isRestoringFocus = true;
+      previousFocus.focus();
+      isRestoringFocus = false;
+    }
   }
 
   function open(): void {
@@ -303,9 +345,10 @@ export function createAfghanDatePicker(input: HTMLInputElement, suppliedOptions:
     render();
     positionPopup();
     const selectedButton = selectedDate
-      ? grid.querySelector<HTMLButtonElement>(`[data-date="${formatAfghanDate(selectedDate, { numerals: 'latin', separator: '-' })}"]`)
+      ? grid.querySelector<HTMLButtonElement>(`.afghan-date-picker__day:not(:disabled)[data-date="${formatAfghanDate(selectedDate, { numerals: 'latin', separator: '-' })}"]`)
       : undefined;
-    (selectedButton ?? grid.querySelector<HTMLButtonElement>('.afghan-date-picker__day[tabindex="0"]'))?.focus();
+    const focusTarget = selectedButton ?? grid.querySelector<HTMLButtonElement>('.afghan-date-picker__day[tabindex="0"]');
+    (focusTarget ?? grid).focus();
   }
 
   function clear(): void {
@@ -322,10 +365,11 @@ export function createAfghanDatePicker(input: HTMLInputElement, suppliedOptions:
     const monthIndex = viewDate.year * 12 + viewDate.month - 1 + amount;
     const year = Math.floor(monthIndex / 12);
     const month = (monthIndex % 12) + 1;
-    if (year < 1 || year > 3000) return;
+    if (year < MIN_AFGHAN_YEAR || year > MAX_AFGHAN_YEAR) return;
     viewDate = { year, month, day: 1 };
     render();
-    grid.querySelector<HTMLButtonElement>('.afghan-date-picker__day[tabindex="0"]')?.focus();
+    const focusTarget = grid.querySelector<HTMLButtonElement>('.afghan-date-picker__day[tabindex="0"]');
+    (focusTarget ?? grid).focus();
   }
 
   function moveFocus(button: HTMLButtonElement, offset: number): void {
@@ -336,7 +380,10 @@ export function createAfghanDatePicker(input: HTMLInputElement, suppliedOptions:
       targetIndex += Math.sign(offset);
     }
     const targetButton = allButtons[targetIndex];
-    if (!targetButton) return;
+    if (!targetButton) {
+      button.focus();
+      return;
+    }
     allButtons.forEach((day) => day.setAttribute('tabindex', '-1'));
     targetButton.setAttribute('tabindex', '0');
     targetButton.focus();
@@ -349,7 +396,10 @@ export function createAfghanDatePicker(input: HTMLInputElement, suppliedOptions:
     const direction = index >= currentIndex ? 1 : -1;
     while (index >= 0 && index < allButtons.length && allButtons[index].disabled) index += direction;
     const targetButton = allButtons[index];
-    if (!targetButton) return;
+    if (!targetButton) {
+      button.focus();
+      return;
+    }
     allButtons.forEach((day) => day.setAttribute('tabindex', '-1'));
     targetButton.setAttribute('tabindex', '0');
     targetButton.focus();
@@ -361,8 +411,14 @@ export function createAfghanDatePicker(input: HTMLInputElement, suppliedOptions:
       : undefined;
     if (!button) return;
 
-    if (event.key === 'ArrowRight') moveFocus(button, 1);
-    else if (event.key === 'ArrowLeft') moveFocus(button, -1);
+    if (event.key === 'Escape') {
+      close();
+      event.preventDefault();
+      return;
+    }
+    const horizontalStep = popup.dir === 'rtl' ? -1 : 1;
+    if (event.key === 'ArrowRight') moveFocus(button, horizontalStep);
+    else if (event.key === 'ArrowLeft') moveFocus(button, -horizontalStep);
     else if (event.key === 'ArrowDown') moveFocus(button, 7);
     else if (event.key === 'ArrowUp') moveFocus(button, -7);
     else if (event.key === 'Home') {
@@ -409,7 +465,7 @@ export function createAfghanDatePicker(input: HTMLInputElement, suppliedOptions:
   previousButton.addEventListener('click', () => changeMonth(-1));
   nextButton.addEventListener('click', () => changeMonth(1));
   todayButton.addEventListener('click', () => {
-    const today = getLocalToday();
+    const today = getTodayInTimeZone(options.timeZone ?? DEFAULT_TIME_ZONE, options.now ?? defaultNow);
     if (isSelectable(today)) commit(today);
   });
   clearButton.addEventListener('click', clear);
@@ -419,7 +475,9 @@ export function createAfghanDatePicker(input: HTMLInputElement, suppliedOptions:
     commit(parseAfghanDate(button.dataset.date.replaceAll('-', '/')));
   });
   grid.addEventListener('keydown', onGridKeyDown);
-  input.addEventListener('focus', open);
+  input.addEventListener('focus', () => {
+    if (!isRestoringFocus) open();
+  });
   input.addEventListener('change', onInputChange);
   input.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') close();
@@ -429,6 +487,8 @@ export function createAfghanDatePicker(input: HTMLInputElement, suppliedOptions:
     }
   });
   doc.addEventListener('mousedown', onDocumentClick);
+  doc.defaultView?.addEventListener('resize', positionPopup);
+  doc.defaultView?.addEventListener('scroll', positionPopup, true);
 
   const picker: DatePicker = {
     element: popup,
@@ -443,6 +503,8 @@ export function createAfghanDatePicker(input: HTMLInputElement, suppliedOptions:
     destroy: () => {
       close();
       doc.removeEventListener('mousedown', onDocumentClick);
+      doc.defaultView?.removeEventListener('resize', positionPopup);
+      doc.defaultView?.removeEventListener('scroll', positionPopup, true);
       popup.remove();
     }
   };

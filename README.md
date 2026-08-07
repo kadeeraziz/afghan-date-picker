@@ -21,10 +21,20 @@ This is an early `0.1.0` release. The first version focuses on single-date
 selection, Afghan locale data, typed input, and Gregorian form submission.
 
 The calendar core currently uses a documented arithmetic civil model with a
-common 33-year leap cycle. It is anchored by these modern conformance vectors:
+published Solar Hijri break-point algorithm based on Kazimierz M. Borkowski's
+work. Afghan locale names remain separate from the conversion arithmetic. The
+implementation supports Afghan years `1` through `3000`, corresponding to
+Gregorian dates from `0622-03-22` through `3622-03-19`. The modern conversion
+range from 1900 through 2100 has been checked against the established
+[jalaali-js reference implementation](https://github.com/jalaali/jalaali-js),
+which uses the same Borkowski algorithm.
+
+These are the conformance vectors used by the package:
 
 | Afghan date | Gregorian date |
 | --- | --- |
+| `1399/12/30` | `2021-03-20` |
+| `1400/01/01` | `2021-03-21` |
 | `1402/12/29` | `2024-03-19` |
 | `1403/01/01` | `2024-03-20` |
 | `1403/12/30` | `2025-03-20` |
@@ -33,16 +43,28 @@ common 33-year leap cycle. It is anchored by these modern conformance vectors:
 The astronomical and historical boundaries of Solar Hijri calendars need more
 research before the calendar model should be treated as a stable `1.0` contract.
 
-The suite runs 34 tests covering conversion round trips across a multi-year
-window, leap-cycle distribution, month-boundary arithmetic, locale names,
-weekday consistency against the Gregorian calendar, keyboard navigation, clear
-behavior, min/max bounds, and form submission.
+The suite runs 45 tests covering historical and modern conversion vectors,
+round trips, Afghan range endpoints, leap days, month-boundary arithmetic,
+locale names, weekday consistency against the Gregorian calendar, keyboard
+navigation including RTL arrows and paging, Kabul midnight behavior, popup
+positioning, clear behavior, min/max bounds, and form submission.
 
 ## Install
 
 ```bash
 npm install afghan-date-picker
 ```
+
+Git-based installation is also supported while the package is under active
+development:
+
+```bash
+npm install https://github.com/kadeeraziz/afghan-date-picker.git
+```
+
+The Git install runs the package `prepare` script to compile `dist`. Published
+npm packages include the compiled `dist` directory, styles, declarations,
+README, and license, so consumers do not need to build the package themselves.
 
 Import the picker and its default styles:
 
@@ -115,6 +137,17 @@ addAfghanMonths(date, 12); // { year: 1404, month: 1, day: 1 }
 addAfghanYears(date, 1); // { year: 1404, month: 1, day: 1 }
 ```
 
+The picker uses `Asia/Kabul` when highlighting or selecting today, rather than
+the browser's local timezone. Applications can provide another IANA timezone
+and a deterministic clock for tests:
+
+```ts
+createAfghanDatePicker(input, {
+  timeZone: 'Asia/Kabul',
+  now: () => new Date('2024-03-20T19:30:00.000Z')
+});
+```
+
 ## Events
 
 The enhanced input dispatches `afghan-date-change` with both values:
@@ -145,7 +178,9 @@ and htmx requests:
 ```
 
 The target input should be the rendered Django field, and the picker writes a
-date such as `2024-03-20` to it.
+date such as `2024-03-20` to it. Existing valid Gregorian values, including
+historical values such as `1990-06-15`, are loaded into the visible Afghan input
+when the picker starts. Invalid typed values do not overwrite the target.
 
 ## Development
 
@@ -154,6 +189,7 @@ npm install
 npm test
 npm run typecheck
 npm run build
+npm pack --dry-run
 ```
 
 The project deliberately keeps the calendar core separate from DOM behavior.
